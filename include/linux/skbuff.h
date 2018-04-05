@@ -723,7 +723,7 @@ struct sk_buff {
 				head_frag:1,
 				xmit_more:1,
 #ifdef CONFIG_SECURITY_TEMPESTA
-				skb_page:1,
+				skb_page:1;
 #else
 				__unused:1; /* one bit hole */
 #endif
@@ -744,7 +744,6 @@ struct sk_buff {
 #define PKT_TYPE_OFFSET()	offsetof(struct sk_buff, __pkt_type_offset)
 
 	__u8			__pkt_type_offset[0];
-	kmemcheck_bitfield_begin(flags2);
 	__u8			pkt_type:3;
 	__u8			pfmemalloc:1;
 	__u8			ignore_df:1;

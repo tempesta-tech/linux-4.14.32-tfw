@@ -1,7 +1,7 @@
 /**
  *		Tempesta Memory Reservation
  *
- * Copyright (C) 2015-2016 Tempesta Technologies, Inc.
+ * Copyright (C) 2015-2018 Tempesta Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 
 static int pgorder = DEFAULT_PGORDER;
 static gfp_t gfp_f = GFP_HIGHUSER | __GFP_COMP | __GFP_THISNODE | __GFP_ZERO
-		     | __GFP_REPEAT |__GFP_NOWARN;
+		     | __GFP_RETRY_MAYFAIL;
 static TempestaMapping map[MAX_NUMNODES];
 /*
  * Modern x86-64 has not more than 512GB RAM per physical node.

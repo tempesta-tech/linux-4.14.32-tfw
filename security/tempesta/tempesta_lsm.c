@@ -2,7 +2,7 @@
  *		Tempesta FW
  *
  * Copyright (C) 2014 NatSys Lab. (info@natsys-lab.com).
- * Copyright (C) 2015-2016 Tempesta Technologies, Inc.
+ * Copyright (C) 2015-2018 Tempesta Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -125,7 +125,8 @@ static struct security_hook_list tempesta_hooks[] __read_mostly = {
 static __init int
 tempesta_init(void)
 {
-	security_add_hooks(tempesta_hooks, ARRAY_SIZE(tempesta_hooks));
+	security_add_hooks(tempesta_hooks, ARRAY_SIZE(tempesta_hooks),
+			   "tempesta");
 
 	return 0;
 }
