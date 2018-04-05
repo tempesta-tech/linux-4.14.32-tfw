@@ -722,7 +722,11 @@ struct sk_buff {
 				peeked:1,
 				head_frag:1,
 				xmit_more:1,
+#ifdef CONFIG_SECURITY_TEMPESTA
+				skb_page:1,
+#else
 				__unused:1; /* one bit hole */
+#endif
 
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
@@ -740,6 +744,7 @@ struct sk_buff {
 #define PKT_TYPE_OFFSET()	offsetof(struct sk_buff, __pkt_type_offset)
 
 	__u8			__pkt_type_offset[0];
+	kmemcheck_bitfield_begin(flags2);
 	__u8			pkt_type:3;
 	__u8			pfmemalloc:1;
 	__u8			ignore_df:1;
@@ -776,6 +781,9 @@ struct sk_buff {
 	__u8			tc_at_ingress:1;
 	__u8			tc_redirected:1;
 	__u8			tc_from_ingress:1;
+#endif
+#ifdef CONFIG_SECURITY_TEMPESTA
+	__u8			tail_lock:1;
 #endif
 
 #ifdef CONFIG_NET_SCHED
@@ -1885,7 +1893,11 @@ static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 
 static inline bool skb_is_nonlinear(const struct sk_buff *skb)
 {
+#ifdef CONFIG_SECURITY_TEMPESTA
+	return skb->tail_lock || skb->data_len;
+#else
 	return skb->data_len;
+#endif
 }
 
 static inline unsigned int skb_headlen(const struct sk_buff *skb)
@@ -2123,6 +2135,20 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
 {
 	return skb->data - skb->head;
 }
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+/**
+ *	skb_tailroom_locked - bytes at buffer end
+ *	@skb: buffer to check
+ *
+ *	Return the number of bytes of free space at the tail of an sk_buff with
+ *	respect to tail locking only.
+ */
+static inline int skb_tailroom_locked(const struct sk_buff *skb)
+{
+	return skb->tail_lock ? 0 : skb->end - skb->tail;
+}
+#endif
 
 /**
  *	skb_tailroom - bytes at buffer end

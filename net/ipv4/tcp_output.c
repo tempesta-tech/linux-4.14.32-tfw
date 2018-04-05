@@ -392,7 +392,7 @@ static void tcp_ecn_send(struct sock *sk, struct sk_buff *skb,
 /* Constructs common control bits of non-data skb. If SYN/FIN is present,
  * auto increment end seqno.
  */
-static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
+void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 {
 	skb->ip_summed = CHECKSUM_PARTIAL;
 	skb->csum = 0;
@@ -407,6 +407,7 @@ static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 		seq++;
 	TCP_SKB_CB(skb)->end_seq = seq;
 }
+EXPORT_SYMBOL(tcp_init_nondata_skb);
 
 static inline bool tcp_urg_mode(const struct tcp_sock *tp)
 {
@@ -1140,7 +1141,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
  * NOTE: probe0 timer is not checked, do not forget tcp_push_pending_frames,
  * otherwise socket can stall.
  */
-static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
+void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1151,6 +1152,7 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 	sk->sk_wmem_queued += skb->truesize;
 	sk_mem_charge(sk, skb->truesize);
 }
+EXPORT_SYMBOL(tcp_queue_skb);
 
 /* Initialize TSO segments for a packet. */
 static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
@@ -1560,6 +1562,7 @@ unsigned int tcp_current_mss(struct sock *sk)
 
 	return mss_now;
 }
+EXPORT_SYMBOL(tcp_current_mss);
 
 /* RFC2861, slow part. Adjust cwnd, after it was not full during one rto.
  * As additional protections, we do not touch cwnd in retransmission phases,
@@ -2518,6 +2521,7 @@ void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 			   sk_gfp_mask(sk, GFP_ATOMIC)))
 		tcp_check_probe_timer(sk);
 }
+EXPORT_SYMBOL(__tcp_push_pending_frames);
 
 /* Send _single_ skb sitting at the send head. This function requires
  * true push pending frames to setup probe timer etc.
@@ -2839,9 +2843,19 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		if (tcp_fragment(sk, skb, len, cur_mss, GFP_ATOMIC))
 			return -ENOMEM; /* We'll try again later. */
 	} else {
+		int delta_truesize = skb->truesize;
+
 		if (skb_unclone(skb, GFP_ATOMIC))
 			return -ENOMEM;
 
+		delta_truesize -= skb->truesize;
+		sk->sk_wmem_queued -= delta_truesize;
+		if (delta_truesize > 0) {
+			sk_mem_uncharge(sk, delta_truesize);
+			sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
+		} else {
+			sk_mem_charge(sk, -delta_truesize);
+		}
 		diff = tcp_skb_pcount(skb);
 		tcp_set_skb_tso_segs(skb, cur_mss);
 		diff -= tcp_skb_pcount(skb);
@@ -3129,6 +3143,7 @@ int tcp_send_synack(struct sock *sk)
 	}
 	return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 }
+EXPORT_SYMBOL(tcp_send_active_reset);
 
 /**
  * tcp_make_synack - Prepare a SYN-ACK.

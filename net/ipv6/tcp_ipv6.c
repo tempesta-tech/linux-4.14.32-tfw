@@ -68,6 +68,7 @@
 
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
+#include <linux/tempesta.h>
 
 static void	tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
@@ -1204,7 +1205,17 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 			       sk_gfp_mask(sk, GFP_ATOMIC));
 	}
 #endif
-
+#ifdef CONFIG_SECURITY_TEMPESTA
+	/*
+	 * We need already initialized socket addresses,
+	 * so there is no appropriate security hook.
+	 */
+	if (tempesta_new_clntsk(newsk)) {
+		inet_csk_prepare_forced_close(newsk);
+		tcp_done(newsk);
+		goto out;
+	}
+#endif
 	if (__inet_inherit_port(sk, newsk) < 0) {
 		inet_csk_prepare_forced_close(newsk);
 		tcp_done(newsk);
@@ -1892,6 +1903,7 @@ static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 		.show		= tcp6_seq_show,
 	},
 };
+EXPORT_SYMBOL(tcpv6_prot);
 
 int __net_init tcp6_proc_init(struct net *net)
 {

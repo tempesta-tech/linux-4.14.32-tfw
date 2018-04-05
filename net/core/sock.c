@@ -1806,8 +1806,16 @@ void sock_wfree(struct sk_buff *skb)
 	 * if sk_wmem_alloc reaches 0, we must finish what sk_free()
 	 * could not do because of in-flight packets
 	 */
-	if (refcount_sub_and_test(len, &sk->sk_wmem_alloc))
+	if (refcount_sub_and_test(len, &sk->sk_wmem_alloc)) {
+		/*
+		 * We don't bother with Tempesta socket memory limitations
+		 * since in proxy mode we just forward packets instead of real
+		 * allocations. Probably this is an issue. Probably sockets
+		 * can be freed from under us.
+		 */
+		WARN_ON(sock_flag(sk, SOCK_TEMPESTA));
 		__sk_free(sk);
+	}
 }
 EXPORT_SYMBOL(sock_wfree);
 

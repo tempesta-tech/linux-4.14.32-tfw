@@ -223,11 +223,13 @@ source security/tomoyo/Kconfig
 source security/apparmor/Kconfig
 source security/loadpin/Kconfig
 source security/yama/Kconfig
+source security/tempesta/Kconfig
 
 source security/integrity/Kconfig
 
 choice
 	prompt "Default security module"
+	default DEFAULT_SECURITY_TEMPESTA if SECURITY_TEMPESTA
 	default DEFAULT_SECURITY_SELINUX if SECURITY_SELINUX
 	default DEFAULT_SECURITY_SMACK if SECURITY_SMACK
 	default DEFAULT_SECURITY_TOMOYO if SECURITY_TOMOYO
@@ -237,6 +239,9 @@ choice
 	help
 	  Select the security module that will be used by default if the
 	  kernel parameter security= is not specified.
+
+	config DEFAULT_SECURITY_TEMPESTA
+		bool "Tempesta FW" if SECURITY_TEMPESTA=y
 
 	config DEFAULT_SECURITY_SELINUX
 		bool "SELinux" if SECURITY_SELINUX=y
@@ -257,6 +262,7 @@ endchoice
 
 config DEFAULT_SECURITY
 	string
+	default "tempesta" if DEFAULT_SECURITY_TEMPESTA
 	default "selinux" if DEFAULT_SECURITY_SELINUX
 	default "smack" if DEFAULT_SECURITY_SMACK
 	default "tomoyo" if DEFAULT_SECURITY_TOMOYO

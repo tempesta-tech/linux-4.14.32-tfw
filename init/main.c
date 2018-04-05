@@ -95,6 +95,8 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
+#include <linux/tempesta.h>
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -500,6 +502,15 @@ static void __init mm_init(void)
 	 */
 	page_ext_init_flatmem();
 	mem_init();
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+	/*
+	 * Tempesta: reserve pages just when zones are initialized
+	 * to get continous address space of huge pages.
+	 */
+	tempesta_reserve_pages();
+#endif
+
 	kmem_cache_init();
 	pgtable_init();
 	vmalloc_init();
@@ -508,6 +519,11 @@ static void __init mm_init(void)
 	init_espfix_bsp();
 	/* Should be run after espfix64 is set up. */
 	pti_init();
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+	/* Try vmalloc() if the previous one failed. */
+	tempesta_reserve_vmpages();
+#endif
 }
 
 asmlinkage __visible void __init start_kernel(void)

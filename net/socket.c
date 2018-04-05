@@ -162,6 +162,12 @@ static const struct file_operations socket_file_ops = {
 static DEFINE_SPINLOCK(net_family_lock);
 static const struct net_proto_family __rcu *net_families[NPROTO] __read_mostly;
 
+const struct net_proto_family *get_proto_family(int family)
+{
+	return rcu_dereference_bh(net_families[family]);
+}
+EXPORT_SYMBOL(get_proto_family);
+
 /*
  *	Statistics counters of the socket lists
  */

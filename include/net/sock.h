@@ -771,6 +771,9 @@ enum sock_flags {
 	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
 	SOCK_SELECT_ERR_QUEUE, /* Wake select on error queue */
 	SOCK_RCU_FREE, /* wait rcu grace period in sk_destruct() */
+#ifdef CONFIG_SECURITY_TEMPESTA
+	SOCK_TEMPESTA, /* The socket is managed by Tempesta FW */
+#endif
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
@@ -1737,8 +1740,7 @@ static inline void sk_rethink_txhash(struct sock *sk)
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
-	return rcu_dereference_check(sk->sk_dst_cache,
-				     lockdep_sock_is_held(sk));
+	return rcu_dereference_raw(sk->sk_dst_cache);
 }
 
 static inline struct dst_entry *
