@@ -623,7 +623,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 		return;
 
 	/* Swap the send and the receive. */
-	memset(&rep, 0, sizeof(rep));
+	bzero_fast(&rep, sizeof(rep));
 	rep.th.dest   = th->source;
 	rep.th.source = th->dest;
 	rep.th.doff   = sizeof(struct tcphdr) / 4;
@@ -637,7 +637,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 				       skb->len - (th->doff << 2));
 	}
 
-	memset(&arg, 0, sizeof(arg));
+	bzero_fast(&arg, sizeof(arg));
 	arg.iov[0].iov_base = (unsigned char *)&rep;
 	arg.iov[0].iov_len  = sizeof(rep.th);
 
@@ -672,7 +672,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 
 
 		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
-		if (genhash || memcmp(hash_location, newhash, 16) != 0)
+		if (genhash || memcmp_fast(hash_location, newhash, 16) != 0)
 			goto out;
 
 	}
@@ -747,8 +747,8 @@ static void tcp_v4_send_ack(const struct sock *sk,
 	struct net *net = sock_net(sk);
 	struct ip_reply_arg arg;
 
-	memset(&rep.th, 0, sizeof(struct tcphdr));
-	memset(&arg, 0, sizeof(arg));
+	bzero_fast(&rep.th, sizeof(struct tcphdr));
+	bzero_fast(&arg, sizeof(arg));
 
 	arg.iov[0].iov_base = (unsigned char *)&rep;
 	arg.iov[0].iov_len  = sizeof(rep.th);
@@ -962,7 +962,7 @@ static struct tcp_md5sig_key *tcp_md5_do_lookup_exact(const struct sock *sk,
 	hlist_for_each_entry_rcu(key, &md5sig->head, node) {
 		if (key->family != family)
 			continue;
-		if (!memcmp(&key->addr, addr, size) &&
+		if (!memcmp_fast(&key->addr, addr, size) &&
 		    key->prefixlen == prefixlen)
 			return key;
 	}
@@ -992,7 +992,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	key = tcp_md5_do_lookup_exact(sk, addr, family, prefixlen);
 	if (key) {
 		/* Pre-existing entry - just update that one. */
-		memcpy(key->key, newkey, newkeylen);
+		memcpy_fast(key->key, newkey, newkeylen);
 		key->keylen = newkeylen;
 		return 0;
 	}
@@ -1017,13 +1017,13 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 		return -ENOMEM;
 	}
 
-	memcpy(key->key, newkey, newkeylen);
+	memcpy_fast(key->key, newkey, newkeylen);
 	key->keylen = newkeylen;
 	key->family = family;
 	key->prefixlen = prefixlen;
-	memcpy(&key->addr, addr,
-	       (family == AF_INET6) ? sizeof(struct in6_addr) :
-				      sizeof(struct in_addr));
+	memcpy_fast(&key->addr, addr,
+		    (family == AF_INET6) ? sizeof(struct in6_addr) :
+					   sizeof(struct in_addr));
 	hlist_add_head_rcu(&key->node, &md5sig->head);
 	return 0;
 }
@@ -1111,7 +1111,7 @@ static int tcp_v4_md5_hash_headers(struct tcp_md5sig_pool *hp,
 	bp->len = cpu_to_be16(nbytes);
 
 	_th = (struct tcphdr *)(bp + 1);
-	memcpy(_th, th, sizeof(*th));
+	memcpy_fast(_th, th, sizeof(*th));
 	_th->check = 0;
 
 	sg_init_one(&sg, bp, sizeof(*bp) + sizeof(*th));
@@ -1147,7 +1147,7 @@ static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 clear_hash:
 	tcp_put_md5sig_pool();
 clear_hash_noput:
-	memset(md5_hash, 0, 16);
+	bzero_fast(md5_hash, 16);
 	return 1;
 }
 
@@ -1193,7 +1193,7 @@ int tcp_v4_md5_hash_skb(char *md5_hash, const struct tcp_md5sig_key *key,
 clear_hash:
 	tcp_put_md5sig_pool();
 clear_hash_noput:
-	memset(md5_hash, 0, 16);
+	bzero_fast(md5_hash, 16);
 	return 1;
 }
 EXPORT_SYMBOL(tcp_v4_md5_hash_skb);
@@ -1245,7 +1245,7 @@ static bool tcp_v4_inbound_md5_hash(const struct sock *sk,
 				      hash_expected,
 				      NULL, skb);
 
-	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
+	if (genhash || memcmp_fast(hash_location, newhash, 16) != 0) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5FAILURE);
 		net_info_ratelimited("MD5 Hash failed for (%pI4, %d)->(%pI4, %d)%s\n",
 				     &iph->saddr, ntohs(th->source),

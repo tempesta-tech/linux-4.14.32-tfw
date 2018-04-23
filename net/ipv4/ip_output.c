@@ -418,8 +418,8 @@ static void ip_copy_addrs(struct iphdr *iph, const struct flowi4 *fl4)
 {
 	BUILD_BUG_ON(offsetof(typeof(*fl4), daddr) !=
 		     offsetof(typeof(*fl4), saddr) + sizeof(fl4->saddr));
-	memcpy(&iph->saddr, &fl4->saddr,
-	       sizeof(fl4->saddr) + sizeof(fl4->daddr));
+	memcpy_fast(&iph->saddr, &fl4->saddr,
+		    sizeof(fl4->saddr) + sizeof(fl4->daddr));
 }
 
 /* Note: skb->sk can be different from sk, in case of tunnels */
@@ -658,7 +658,8 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 				skb_reset_transport_header(frag);
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
-				memcpy(skb_network_header(frag), iph, hlen);
+				memcpy_fast(skb_network_header(frag), iph,
+					    hlen);
 				iph = ip_hdr(frag);
 				iph->tot_len = htons(frag->len);
 				ip_copy_metadata(frag, skb);
@@ -1112,7 +1113,8 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			if (unlikely(!cork->opt))
 				return -ENOBUFS;
 		}
-		memcpy(cork->opt, &opt->opt, sizeof(struct ip_options) + opt->opt.optlen);
+		memcpy_fast(cork->opt, &opt->opt,
+			    sizeof(struct ip_options) + opt->opt.optlen);
 		cork->flags |= IPCORK_OPT;
 		cork->addr = ipc->addr;
 	}

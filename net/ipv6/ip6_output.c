@@ -691,7 +691,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		fh = __skb_push(skb, sizeof(struct frag_hdr));
 		__skb_push(skb, hlen);
 		skb_reset_network_header(skb);
-		memcpy(skb_network_header(skb), tmp_hdr, hlen);
+		memcpy_fast(skb_network_header(skb), tmp_hdr, hlen);
 
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
@@ -713,7 +713,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 				fh = __skb_push(frag, sizeof(struct frag_hdr));
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
-				memcpy(skb_network_header(frag), tmp_hdr,
+				memcpy_fast(skb_network_header(frag), tmp_hdr,
 				       hlen);
 				offset += skb->len - hlen - sizeof(struct frag_hdr);
 				fh->nexthdr = nexthdr;
@@ -1020,8 +1020,8 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 			 * default router instead
 			 */
 			dst_release(*dst);
-			memcpy(&fl_gw6, fl6, sizeof(struct flowi6));
-			memset(&fl_gw6.daddr, 0, sizeof(struct in6_addr));
+			memcpy_fast(&fl_gw6, fl6, sizeof(struct flowi6));
+			bzero_fast(&fl_gw6.daddr, sizeof(struct in6_addr));
 			*dst = ip6_route_output(net, sk, &fl_gw6);
 			err = (*dst)->error;
 			if (err)
@@ -1582,7 +1582,7 @@ static void ip6_cork_release(struct inet_cork_full *cork,
 		cork->base.dst = NULL;
 		cork->base.flags &= ~IPCORK_ALLFRAG;
 	}
-	memset(&cork->fl, 0, sizeof(cork->fl));
+	bzero_fast(&cork->fl, sizeof(cork->fl));
 }
 
 struct sk_buff *__ip6_make_skb(struct sock *sk,

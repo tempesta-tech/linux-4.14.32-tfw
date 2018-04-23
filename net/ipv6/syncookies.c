@@ -161,7 +161,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_SYNCOOKIESRECV);
 
 	/* check for timestamp cookie support */
-	memset(&tcp_opt, 0, sizeof(tcp_opt));
+	bzero_fast(&tcp_opt, sizeof(tcp_opt));
 	tcp_parse_options(sock_net(sk), skb, &tcp_opt, 0, NULL);
 
 	if (tcp_opt.saw_tstamp && tcp_opt.rcv_tsecr) {
@@ -226,7 +226,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	{
 		struct in6_addr *final_p, final;
 		struct flowi6 fl6;
-		memset(&fl6, 0, sizeof(fl6));
+		bzero_fast(&fl6, sizeof(fl6));
 		fl6.flowi6_proto = IPPROTO_TCP;
 		fl6.daddr = ireq->ir_v6_rmt_addr;
 		final_p = fl6_update_dst(&fl6, rcu_dereference(np->opt), &final);

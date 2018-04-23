@@ -182,6 +182,116 @@ ENTRY(memcpy_orig)
 	retq
 ENDPROC(memcpy_orig)
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+ENTRY(__memcpy_avx)
+	movq	%rdx, %rax
+	leaq	128(%rsi), %rcx
+	movq	%rsi, %r8
+	andq	$-32, %rax
+	addq	%rsi, %rax
+	cmpq	%rcx, %rax
+	jnb	.L128cpy
+	testb	$64, %dl
+	jne	.L64cpy
+.L32tail:
+	testb	$32, %dl
+	jne	.L32cpy
+.L16tail:
+	movq	%r8, %rcx
+	movq	%rdi, %rax
+	testb	$16, %dl
+	jne	.L16cpy
+.L8tail:
+	testb	$8, %dl
+	jne	.L8cpy
+.L4tail:
+	testb	$4, %dl
+	jne	.L4cpy
+.L2tail:
+	testb	$2, %dl
+	jne	.L2cpy
+.L1tail:
+	andl	$1, %edx
+	jne	.L1cpy
+	/* Don't clean the registers w/ vzeroupper. */
+	ret
+	.p2align 4
+.Lrepeat128cpy:
+	movq	%r8, %rsi
+.L128cpy:
+	vlddqu	(%rsi), %ymm3
+	vlddqu	32(%rsi), %ymm2
+	movq	%rcx, %r8
+	leaq	96(%rdi), %rcx
+	vlddqu	64(%rsi), %ymm1
+	vlddqu	96(%rsi), %ymm0
+	subq	$-128, %rdi
+	vmovdqu	%ymm3, -128(%rdi)
+	vmovdqu	%ymm2, -96(%rdi)
+	vmovdqu	%ymm1, -64(%rdi)
+	vmovdqu	%ymm0, (%rcx)
+	leaq	256(%rsi), %rcx
+	cmpq	%rcx, %rax
+	jnb	.Lrepeat128cpy
+	testb	$64, %dl
+	je	.L32tail
+.L64cpy:
+	leaq	32(%r8), %rax
+	vlddqu	(%r8), %ymm1
+	vlddqu	(%rax), %ymm0
+	leaq	32(%rdi), %rax
+	addq	$64, %r8
+	addq	$64, %rdi
+	vmovdqu	%ymm1, -64(%rdi)
+	vmovdqu	%ymm0, (%rax)
+	testb	$32, %dl
+	je	.L16tail
+.L32cpy:
+	vlddqu	(%r8), %ymm0
+	addq	$32, %rdi
+	addq	$32, %r8
+	movq	%r8, %rcx
+	vmovdqu	%ymm0, -32(%rdi)
+	movq	%rdi, %rax
+	testb	$16, %dl
+	je	.L8tail
+.L16cpy:
+	vlddqu	(%r8), %xmm0
+	addq	$16, %rcx
+	addq	$16, %rax
+	vmovups	%xmm0, (%rdi)
+	testb	$8, %dl
+	je	.L4tail
+.L8cpy:
+	movq	(%rcx), %rsi
+	addq	$8, %rax
+	addq	$8, %rcx
+	movq	%rsi, -8(%rax)
+	testb	$4, %dl
+	je	.L2tail
+.L4cpy:
+	movl	(%rcx), %esi
+	addq	$4, %rax
+	addq	$4, %rcx
+	movl	%esi, -4(%rax)
+	testb	$2, %dl
+	je	.L1tail
+.L2cpy:
+	movzwl	(%rcx), %esi
+	addq	$2, %rax
+	addq	$2, %rcx
+	movw	%si, -2(%rax)
+	andl	$1, %edx
+	je	.Lret
+.L1cpy:
+	movzbl	(%rcx), %edx
+	movb	%dl, (%rax)
+.Lret:
+	ret
+ENDPROC(__memcpy_avx)
+EXPORT_SYMBOL(__memcpy_avx)
+#endif
+
 #ifndef CONFIG_UML
 /*
  * memcpy_mcsafe_unrolled - memory copy with machine check exception handling
