@@ -95,7 +95,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto drop;
 	}
 
-	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
+	bzero_fast(IP6CB(skb), sizeof(struct inet6_skb_parm));
 
 	/*
 	 * Store incoming device index. When the packet will

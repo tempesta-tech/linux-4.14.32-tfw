@@ -140,3 +140,91 @@ ENTRY(memset_orig)
 	jmp .Lafter_bad_alignment
 .Lfinal:
 ENDPROC(memset_orig)
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+ENTRY(__bzero_avx)
+	movq	%rsi, %rax
+	movq	%rdi, %rdx
+	andq	$-128, %rax
+	addq	%rdi, %rax
+	cmpq	%rax, %rdi
+	vpxor	%ymm0, %ymm0, %ymm0
+	jb	.L128zer
+	testb	$64, %sil
+	jne	.L64zer
+.L32tail:
+	testb	$32, %sil
+	jne	.L32zer
+.L16tail:
+	movq	%rdx, %rax
+	testb	$16, %sil
+	jne	.L16zer
+.L8tail:
+	testb	$8, %sil
+	jne	.L8zer
+.L4tail:
+	testb	$4, %sil
+	jne	.L4zer
+.L2tail:
+	testb	$2, %sil
+	jne	.L2zer
+.L1tail:
+	andl	$1, %esi
+	jne	.L1zer
+	/* Don't clean the registers w/ vzeroupper. */
+	ret
+	.p2align 4
+.L128zer:
+	vmovdqu	%ymm0, (%rdx)
+	subq	$-128, %rdx
+	vmovdqu	%ymm0, -96(%rdx)
+	vmovdqu	%ymm0, -64(%rdx)
+	vmovdqu	%ymm0, -32(%rdx)
+	cmpq	%rdx, %rax
+	ja	.L128zer
+	movq	%rdi, %rdx
+	notq	%rdx
+	addq	%rdx, %rax
+	andq	$-128, %rax
+	leaq	128(%rdi,%rax), %rdx
+	testb	$64, %sil
+	je	.L32tail
+.L64zer:
+	addq	$64, %rdx
+	vmovdqu	%ymm0, -64(%rdx)
+	vmovdqu	%ymm0, -32(%rdx)
+	testb	$32, %sil
+	je	.L16tail
+.L32zer:
+	addq	$32, %rdx
+	vmovdqu	%ymm0, -32(%rdx)
+	movq	%rdx, %rax
+	testb	$16, %sil
+	je	.L8tail
+.L16zer:
+	addq	$16, %rax
+	vmovups	%xmm0, (%rdx)
+	testb	$8, %sil
+	je	.L4tail
+.L8zer:
+	movq	$0, (%rax)
+	addq	$8, %rax
+	testb	$4, %sil
+	je	.L2tail
+.L4zer:
+	movl	$0, (%rax)
+	addq	$4, %rax
+	testb	$2, %sil
+	je	.L1tail
+.L2zer:
+	movw	$0, (%rax)
+	addq	$2, %rax
+	andl	$1, %esi
+	je	.Lret
+.L1zer:
+	movb	$0, (%rax)
+.Lret:
+	ret
+ENDPROC(__bzero_avx)
+EXPORT_SYMBOL(__bzero_avx)
+#endif

@@ -530,7 +530,7 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			*p++ = len;
 		}
 
-		memcpy(p, foc->val, foc->len);
+		memcpy_fast(p, foc->val, foc->len);
 		if ((len & 3) == 2) {
 			p[foc->len] = TCPOPT_NOP;
 			p[foc->len + 1] = TCPOPT_NOP;
@@ -1017,7 +1017,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	inet = inet_sk(sk);
 	tcb = TCP_SKB_CB(skb);
-	memset(&opts, 0, sizeof(opts));
+	bzero_fast(&opts, sizeof(opts));
 
 	if (unlikely(tcb->tcp_flags & TCPHDR_SYN))
 		tcp_options_size = tcp_syn_options(sk, skb, &opts, &md5);
@@ -1120,8 +1120,8 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	skb->tstamp = 0;
 
 	/* Cleanup our debris for IP stacks */
-	memset(skb->cb, 0, max(sizeof(struct inet_skb_parm),
-			       sizeof(struct inet6_skb_parm)));
+	bzero_fast(skb->cb, max(sizeof(struct inet_skb_parm),
+			        sizeof(struct inet6_skb_parm)));
 
 	err = icsk->icsk_af_ops->queue_xmit(sk, skb, &inet->cork.fl);
 
@@ -3197,7 +3197,7 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 
 	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
 
-	memset(&opts, 0, sizeof(opts));
+	bzero_fast(&opts, sizeof(opts));
 #ifdef CONFIG_SYN_COOKIES
 	if (unlikely(req->cookie_ts))
 		skb->skb_mstamp = cookie_init_timestamp(req);
@@ -3217,7 +3217,7 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	skb_reset_transport_header(skb);
 
 	th = (struct tcphdr *)skb->data;
-	memset(th, 0, sizeof(struct tcphdr));
+	bzero_fast(th, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
 	tcp_ecn_make_synack(req, th);
@@ -3394,7 +3394,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 	if (!syn_data)
 		goto fallback;
 	syn_data->ip_summed = CHECKSUM_PARTIAL;
-	memcpy(syn_data->cb, syn->cb, sizeof(syn->cb));
+	memcpy_fast(syn_data->cb, syn->cb, sizeof(syn->cb));
 	if (space) {
 		int copied = copy_from_iter(skb_put(syn_data, space), space,
 					    &fo->data->msg_iter);

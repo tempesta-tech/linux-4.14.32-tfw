@@ -4827,7 +4827,7 @@ restart:
 		if (!nskb)
 			break;
 
-		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
+		memcpy_fast(nskb->cb, skb->cb, sizeof(skb->cb));
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		if (list)
 			__skb_queue_before(list, skb, nskb);
@@ -6252,7 +6252,7 @@ static void tcp_reqsk_record_syn(const struct sock *sk,
 		copy = kmalloc(len + sizeof(u32), GFP_ATOMIC);
 		if (copy) {
 			copy[0] = len;
-			memcpy(&copy[1], skb_network_header(skb), len);
+			memcpy_fast(&copy[1], skb_network_header(skb), len);
 			req->saved_syn = copy;
 		}
 	}

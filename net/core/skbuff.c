@@ -332,7 +332,7 @@ __alloc_skb_init(struct sk_buff *skb, u8 *data, unsigned int size,
 	 * actually initialise below. Hence, don't put any more fields after
 	 * the tail pointer in struct sk_buff!
 	 */
-	memset(skb, 0, offsetof(struct sk_buff, tail));
+	bzero_fast(skb, offsetof(struct sk_buff, tail));
 	/* Account for allocated memory : skb + skb->head */
 	skb->truesize = SKB_TRUESIZE(size);
 	skb->pfmemalloc = pfmemalloc;
@@ -346,7 +346,7 @@ __alloc_skb_init(struct sk_buff *skb, u8 *data, unsigned int size,
 
 	/* make sure we initialize shinfo sequentially */
 	shinfo = skb_shinfo(skb);
-	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+	bzero_fast(shinfo, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 
 	if (flags & SKB_ALLOC_FCLONE) {
@@ -504,7 +504,7 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 
 	size -= SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	memset(skb, 0, offsetof(struct sk_buff, tail));
+	bzero_fast(skb, offsetof(struct sk_buff, tail));
 	skb->truesize = SKB_TRUESIZE(size);
 	refcount_set(&skb->users, 1);
 	skb->head = data;
@@ -516,7 +516,7 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 
 	/* make sure we initialize shinfo sequentially */
 	shinfo = skb_shinfo(skb);
-	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+	bzero_fast(shinfo, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 
 	return skb;
@@ -1035,7 +1035,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->tstamp		= old->tstamp;
 	/* We do not copy old->sk */
 	new->dev		= old->dev;
-	memcpy(new->cb, old->cb, sizeof(old->cb));
+	memcpy_fast(new->cb, old->cb, sizeof(old->cb));
 	skb_dst_copy(new, old);
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
@@ -1047,9 +1047,9 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	 */
 	new->queue_mapping = old->queue_mapping;
 
-	memcpy(&new->headers_start, &old->headers_start,
-	       offsetof(struct sk_buff, headers_end) -
-	       offsetof(struct sk_buff, headers_start));
+	memcpy_fast(&new->headers_start, &old->headers_start,
+		    offsetof(struct sk_buff, headers_end) -
+		    offsetof(struct sk_buff, headers_start));
 	CHECK_SKB_FIELD(protocol);
 	CHECK_SKB_FIELD(csum);
 	CHECK_SKB_FIELD(hash);
@@ -1292,7 +1292,7 @@ void sock_zerocopy_callback(struct ubuf_info *uarg, bool success)
 	hi = uarg->id + len - 1;
 
 	serr = SKB_EXT_ERR(skb);
-	memset(serr, 0, sizeof(*serr));
+	bzero_fast(serr, sizeof(*serr));
 	serr->ee.ee_errno = 0;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ZEROCOPY;
 	serr->ee.ee_data = hi;
@@ -1458,8 +1458,8 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 					page = (struct page *)page_private(page);
 				}
 				copy = min_t(u32, PAGE_SIZE - d_off, p_len - done);
-				memcpy(page_address(page) + d_off,
-				       vaddr + p_off + done, copy);
+				memcpy_fast(page_address(page) + d_off,
+					    vaddr + p_off + done, copy);
 				done += copy;
 				d_off += copy;
 			}
@@ -1720,11 +1720,11 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void.
 	 */
-	memcpy(data + nhead, skb->head, skb_tail_pointer(skb) - skb->head);
+	memcpy_fast(data + nhead, skb->head, skb_tail_pointer(skb) - skb->head);
 
-	memcpy((struct skb_shared_info *)(data + size),
-	       skb_shinfo(skb),
-	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
+	memcpy_fast((struct skb_shared_info *)(data + size), skb_shinfo(skb),
+		    offsetof(struct skb_shared_info,
+			     frags[skb_shinfo(skb)->nr_frags]));
 
 	/*
 	 * if shinfo is shared we must drop the old head gracefully, but if it
@@ -1890,7 +1890,7 @@ int __skb_pad(struct sk_buff *skb, int pad, bool free_on_error)
 
 	/* If the skbuff is non linear tailroom is always zero.. */
 	if (!skb_cloned(skb) && skb_tailroom(skb) >= pad) {
-		memset(skb->data+skb->len, 0, pad);
+		bzero_fast(skb->data+skb->len, pad);
 		return 0;
 	}
 
@@ -1912,7 +1912,7 @@ int __skb_pad(struct sk_buff *skb, int pad, bool free_on_error)
 	if (unlikely(err))
 		goto free_skb;
 
-	memset(skb->data + skb->len, 0, pad);
+	bzero_fast(skb->data + skb->len, pad);
 	return 0;
 
 free_skb:
@@ -2313,7 +2313,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 					      f->page_offset + offset - start,
 					      copy, p, p_off, p_len, copied) {
 				vaddr = kmap_atomic(p);
-				memcpy(to + copied, vaddr + p_off, p_len);
+				memcpy_fast(to + copied, vaddr + p_off, p_len);
 				kunmap_atomic(vaddr);
 			}
 
@@ -2372,8 +2372,8 @@ static struct page *linear_to_page(struct page *page, unsigned int *len,
 
 	*len = min_t(unsigned int, *len, pfrag->size - pfrag->offset);
 
-	memcpy(page_address(pfrag->page) + pfrag->offset,
-	       page_address(page) + *offset, *len);
+	memcpy_fast(page_address(pfrag->page) + pfrag->offset,
+		    page_address(page) + *offset, *len);
 	*offset = pfrag->offset;
 	pfrag->offset += *len;
 
@@ -2554,7 +2554,7 @@ do_frag_list:
 		slen = min_t(int, len, skb_headlen(skb) - offset);
 		kv.iov_base = skb->data + offset;
 		kv.iov_len = slen;
-		memset(&msg, 0, sizeof(msg));
+		bzero_fast(&msg, sizeof(msg));
 
 		ret = kernel_sendmsg_locked(sk, &msg, &kv, 1, slen);
 		if (ret <= 0)
@@ -2686,7 +2686,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 					      frag->page_offset + offset - start,
 					      copy, p, p_off, p_len, copied) {
 				vaddr = kmap_atomic(p);
-				memcpy(vaddr + p_off, from + copied, p_len);
+				memcpy_fast(vaddr + p_off, from + copied, p_len);
 				kunmap_atomic(vaddr);
 			}
 
@@ -4115,7 +4115,8 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		frag->page_offset = first_offset;
 		skb_frag_size_set(frag, first_size);
 
-		memcpy(frag + 1, skbinfo->frags, sizeof(*frag) * skbinfo->nr_frags);
+		memcpy_fast(frag + 1, skbinfo->frags,
+			    sizeof(*frag) * skbinfo->nr_frags);
 		/* We dont need to clear skbinfo->nr_frags here */
 
 		delta_truesize = skb->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
@@ -4542,7 +4543,7 @@ static void __skb_complete_tx_timestamp(struct sk_buff *skb,
 	BUILD_BUG_ON(sizeof(struct sock_exterr_skb) > sizeof(skb->cb));
 
 	serr = SKB_EXT_ERR(skb);
-	memset(serr, 0, sizeof(*serr));
+	bzero_fast(serr, sizeof(*serr));
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 	serr->ee.ee_info = tstype;
@@ -4665,7 +4666,7 @@ void skb_complete_wifi_ack(struct sk_buff *skb, bool acked)
 	skb->wifi_acked = acked;
 
 	serr = SKB_EXT_ERR(skb);
-	memset(serr, 0, sizeof(*serr));
+	bzero_fast(serr, sizeof(*serr));
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TXSTATUS;
 
@@ -5111,9 +5112,9 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 
 	WARN_ON_ONCE(delta < len);
 
-	memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
-	       skb_shinfo(from)->frags,
-	       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
+	memcpy_fast(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
+		    skb_shinfo(from)->frags,
+		    skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
 	skb_shinfo(to)->nr_frags += skb_shinfo(from)->nr_frags;
 
 	if (!skb_cloned(from))
@@ -5510,10 +5511,9 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 	skb_copy_from_linear_data_offset(skb, off, data, new_hlen);
 	skb->len -= off;
 
-	memcpy((struct skb_shared_info *)(data + size),
-	       skb_shinfo(skb),
-	       offsetof(struct skb_shared_info,
-			frags[skb_shinfo(skb)->nr_frags]));
+	memcpy_fast((struct skb_shared_info *)(data + size), skb_shinfo(skb),
+		    offsetof(struct skb_shared_info,
+			     frags[skb_shinfo(skb)->nr_frags]));
 	if (skb_cloned(skb)) {
 		/* drop the old head gracefully */
 		if (skb_orphan_frags(skb, gfp_mask)) {
@@ -5645,9 +5645,9 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	size = SKB_WITH_OVERHEAD(ksize(data));
 #endif
 
-	memcpy((struct skb_shared_info *)(data + size),
-	       skb_shinfo(skb), offsetof(struct skb_shared_info,
-					 frags[skb_shinfo(skb)->nr_frags]));
+	memcpy_fast((struct skb_shared_info *)(data + size),
+		    skb_shinfo(skb), offsetof(struct skb_shared_info,
+					      frags[skb_shinfo(skb)->nr_frags]));
 	if (skb_orphan_frags(skb, gfp_mask)) {
 #ifdef CONFIG_SECURITY_TEMPESTA
 		skb_free_frag(data);

@@ -4762,9 +4762,9 @@ static void gro_list_prepare(struct napi_struct *napi, struct sk_buff *skb)
 			diffs |= compare_ether_header(skb_mac_header(p),
 						      skb_mac_header(skb));
 		else if (!diffs)
-			diffs = memcmp(skb_mac_header(p),
-				       skb_mac_header(skb),
-				       maclen);
+			diffs = memcmp_fast(skb_mac_header(p),
+					    skb_mac_header(skb),
+					    maclen);
 		NAPI_GRO_CB(p)->same_flow = !diffs;
 	}
 }
@@ -4794,7 +4794,7 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 
 	BUG_ON(skb->end - skb->tail < grow);
 
-	memcpy(skb_tail_pointer(skb), NAPI_GRO_CB(skb)->frag0, grow);
+	memcpy_fast(skb_tail_pointer(skb), NAPI_GRO_CB(skb)->frag0, grow);
 
 	skb->data_len -= grow;
 	skb->tail += grow;

@@ -849,6 +849,46 @@ struct sk_buff {
  */
 #include <linux/slab.h>
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+/*
+ * We can't use SIMD without FPU state saving, which is expensive so just fall
+ * back to plain memcpy(), memset() and memcmp() correspondingly.
+ */
+static inline void
+memcpy_fast(void *to, const void *from, size_t len)
+{
+	if (unlikely(!in_serving_softirq())) {
+		memcpy(to, from, len);
+		return;
+	}
+
+	__memcpy_avx(to, from, len);
+}
+
+static inline int
+memcmp_fast(const void *a, const void *b, size_t len)
+{
+	if (unlikely(!in_serving_softirq()))
+		return memcmp(a, b, len);
+
+	return __memcmp_avx(a, b, len);
+}
+
+static inline void
+bzero_fast(void *s, size_t len)
+{
+	if (unlikely(!in_serving_softirq())) {
+		memset(s, 0, len);
+		return;
+	}
+
+	__bzero_avx(s, len);
+}
+#else
+#define memcpy_fast(to, from, len)	memcpy(to, from, len)
+#define memcmp_fast(a, b, len)		memcmp(a, b, len)
+#define bzero_fast(s, len)		memset(s, 0, len)
+#endif
 
 #define SKB_ALLOC_FCLONE	0x01
 #define SKB_ALLOC_RX		0x02
@@ -1195,7 +1235,7 @@ static inline bool skb_flow_dissect_flow_keys(const struct sk_buff *skb,
 					      struct flow_keys *flow,
 					      unsigned int flags)
 {
-	memset(flow, 0, sizeof(*flow));
+	bzero_fast(flow, sizeof(*flow));
 	return __skb_flow_dissect(skb, &flow_keys_dissector, flow,
 				  NULL, 0, 0, 0, flags);
 }
@@ -1205,7 +1245,7 @@ static inline bool skb_flow_dissect_flow_keys_buf(struct flow_keys *flow,
 						  int nhoff, int hlen,
 						  unsigned int flags)
 {
-	memset(flow, 0, sizeof(*flow));
+	bzero_fast(flow, sizeof(*flow));
 	return __skb_flow_dissect(NULL, &flow_keys_buf_dissector, flow,
 				  data, proto, nhoff, hlen, flags);
 }
@@ -2034,7 +2074,7 @@ static inline void *__skb_put_zero(struct sk_buff *skb, unsigned int len)
 {
 	void *tmp = __skb_put(skb, len);
 
-	memset(tmp, 0, len);
+	bzero_fast(tmp, len);
 	return tmp;
 }
 
@@ -2043,7 +2083,7 @@ static inline void *__skb_put_data(struct sk_buff *skb, const void *data,
 {
 	void *tmp = __skb_put(skb, len);
 
-	memcpy(tmp, data, len);
+	memcpy_fast(tmp, data, len);
 	return tmp;
 }
 
@@ -2056,7 +2096,7 @@ static inline void *skb_put_zero(struct sk_buff *skb, unsigned int len)
 {
 	void *tmp = skb_put(skb, len);
 
-	memset(tmp, 0, len);
+	bzero_fast(tmp, len);
 
 	return tmp;
 }
@@ -2066,7 +2106,7 @@ static inline void *skb_put_data(struct sk_buff *skb, const void *data,
 {
 	void *tmp = skb_put(skb, len);
 
-	memcpy(tmp, data, len);
+	memcpy_fast(tmp, data, len);
 
 	return tmp;
 }
@@ -3375,21 +3415,21 @@ static inline void skb_copy_from_linear_data(const struct sk_buff *skb,
 					     void *to,
 					     const unsigned int len)
 {
-	memcpy(to, skb->data, len);
+	memcpy_fast(to, skb->data, len);
 }
 
 static inline void skb_copy_from_linear_data_offset(const struct sk_buff *skb,
 						    const int offset, void *to,
 						    const unsigned int len)
 {
-	memcpy(to, skb->data + offset, len);
+	memcpy_fast(to, skb->data + offset, len);
 }
 
 static inline void skb_copy_to_linear_data(struct sk_buff *skb,
 					   const void *from,
 					   const unsigned int len)
 {
-	memcpy(skb->data, from, len);
+	memcpy_fast(skb->data, from, len);
 }
 
 static inline void skb_copy_to_linear_data_offset(struct sk_buff *skb,
@@ -3397,7 +3437,7 @@ static inline void skb_copy_to_linear_data_offset(struct sk_buff *skb,
 						  const void *from,
 						  const unsigned int len)
 {
-	memcpy(skb->data + offset, from, len);
+	memcpy_fast(skb->data + offset, from, len);
 }
 
 void skb_init(void);

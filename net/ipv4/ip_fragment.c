@@ -719,7 +719,7 @@ struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user)
 				return skb;
 			if (pskb_trim_rcsum(skb, netoff + len))
 				return skb;
-			memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+			bzero_fast(IPCB(skb), sizeof(struct inet_skb_parm));
 			if (ip_defrag(net, skb, user))
 				return NULL;
 			skb_clear_hash(skb);

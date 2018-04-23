@@ -130,8 +130,8 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				tcp_probe_copy_fl_to_si4(inet, p->dst.v4, d);
 				break;
 			case AF_INET6:
-				memset(&p->src.v6, 0, sizeof(p->src.v6));
-				memset(&p->dst.v6, 0, sizeof(p->dst.v6));
+				bzero_fast(&p->src.v6, sizeof(p->src.v6));
+				bzero_fast(&p->dst.v6, sizeof(p->dst.v6));
 #if IS_ENABLED(CONFIG_IPV6)
 				p->src.v6.sin6_family = AF_INET6;
 				p->src.v6.sin6_port = inet->inet_sport;

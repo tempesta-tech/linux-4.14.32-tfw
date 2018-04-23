@@ -684,7 +684,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		struct in6_addr *final_p, final;
 		struct flowi6 fl6;
 
-		memset(&fl6, 0, sizeof(fl6));
+		bzero_fast(&fl6, sizeof(fl6));
 		fl6.flowi6_proto = sk->sk_protocol;
 		fl6.daddr = sk->sk_v6_daddr;
 		fl6.saddr = np->saddr;

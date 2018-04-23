@@ -484,7 +484,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	skb->transport_header = skb->network_header + iph->ihl*4;
 
 	/* Remove any debris in the socket control block */
-	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	bzero_fast(IPCB(skb), sizeof(struct inet_skb_parm));
 	IPCB(skb)->iif = skb->skb_iif;
 
 	/* Must drop socket now because of tproxy. */

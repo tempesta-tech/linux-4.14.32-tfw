@@ -45,6 +45,9 @@ else
         lib-y += csum-partial_64.o csum-copy_64.o csum-wrappers_64.o
         lib-y += clear_page_64.o copy_page_64.o
         lib-y += memmove_64.o memset_64.o
+ifeq ($(CONFIG_SECURITY_TEMPESTA),y)
+	lib-y += memcmp_64.o
+endif
         lib-y += copy_user_64.o
 	lib-y += cmpxchg16b_emu.o
 endif

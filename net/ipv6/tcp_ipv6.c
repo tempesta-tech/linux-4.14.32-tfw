@@ -138,7 +138,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (usin->sin6_family != AF_INET6)
 		return -EAFNOSUPPORT;
 
-	memset(&fl6, 0, sizeof(fl6));
+	bzero_fast(&fl6, sizeof(fl6));
 
 	if (np->sndflow) {
 		fl6.flowlabel = usin->sin6_flowinfo&IPV6_FLOWINFO_MASK;
@@ -580,7 +580,7 @@ static int tcp_v6_md5_hash_headers(struct tcp_md5sig_pool *hp,
 	bp->len = cpu_to_be32(nbytes);
 
 	_th = (struct tcphdr *)(bp + 1);
-	memcpy(_th, th, sizeof(*th));
+	memcpy_fast(_th, th, sizeof(*th));
 	_th->check = 0;
 
 	sg_init_one(&sg, bp, sizeof(*bp) + sizeof(*th));
@@ -617,7 +617,7 @@ static int tcp_v6_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 clear_hash:
 	tcp_put_md5sig_pool();
 clear_hash_noput:
-	memset(md5_hash, 0, 16);
+	bzero_fast(md5_hash, 16);
 	return 1;
 }
 
@@ -664,7 +664,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash,
 clear_hash:
 	tcp_put_md5sig_pool();
 clear_hash_noput:
-	memset(md5_hash, 0, 16);
+	bzero_fast(md5_hash, 16);
 	return 1;
 }
 
@@ -703,7 +703,7 @@ static bool tcp_v6_inbound_md5_hash(const struct sock *sk,
 				      hash_expected,
 				      NULL, skb);
 
-	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
+	if (genhash || memcmp_fast(hash_location, newhash, 16) != 0) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5FAILURE);
 		net_info_ratelimited("MD5 Hash %s for [%pI6c]:%u->[%pI6c]:%u\n",
 				     genhash ? "failed" : "mismatch",
@@ -807,7 +807,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	skb_reset_transport_header(buff);
 
 	/* Swap the send and the receive. */
-	memset(t1, 0, sizeof(*t1));
+	bzero_fast(t1, sizeof(*t1));
 	t1->dest = th->source;
 	t1->source = th->dest;
 	t1->doff = tot_len / 4;
@@ -836,7 +836,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	}
 #endif
 
-	memset(&fl6, 0, sizeof(fl6));
+	bzero_fast(&fl6, sizeof(fl6));
 	fl6.daddr = ipv6_hdr(skb)->saddr;
 	fl6.saddr = ipv6_hdr(skb)->daddr;
 	fl6.flowlabel = label;
@@ -929,7 +929,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 			goto out;
 
 		genhash = tcp_v6_md5_hash_skb(newhash, key, NULL, skb);
-		if (genhash || memcmp(hash_location, newhash, 16) != 0)
+		if (genhash || memcmp_fast(hash_location, newhash, 16) != 0)
 			goto out;
 	}
 #endif
@@ -1068,7 +1068,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		newnp = inet6_sk(newsk);
 		newtp = tcp_sk(newsk);
 
-		memcpy(newnp, np, sizeof(struct ipv6_pinfo));
+		memcpy_fast(newnp, np, sizeof(struct ipv6_pinfo));
 
 		newnp->saddr = newsk->sk_v6_rcv_saddr;
 
@@ -1136,7 +1136,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	newinet = inet_sk(newsk);
 	newnp = inet6_sk(newsk);
 
-	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
+	memcpy_fast(newnp, np, sizeof(struct ipv6_pinfo));
 
 	newsk->sk_v6_daddr = ireq->ir_v6_rmt_addr;
 	newnp->saddr = ireq->ir_v6_loc_addr;

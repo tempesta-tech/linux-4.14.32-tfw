@@ -31,6 +31,11 @@ static __always_inline void *__inline_memcpy(void *to, const void *from, size_t 
 #define __HAVE_ARCH_MEMCPY 1
 extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
+#ifdef CONFIG_SECURITY_TEMPESTA
+extern void __memcpy_avx(void *to, const void *from, size_t len);
+extern int __memcmp_avx(const void *a, const void *b, size_t len);
+extern void __bzero_avx(void *s, size_t len);
+#endif
 
 #ifndef CONFIG_FORTIFY_SOURCE
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4

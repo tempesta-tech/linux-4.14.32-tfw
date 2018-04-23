@@ -60,7 +60,7 @@ error:		kfree(ctx);
 		crypto_free_cipher(ctx->tfm);
 		goto error;
 	}
-	memcpy(ctx->key, key, len);
+	memcpy_fast(ctx->key, key, len);
 
 	spin_lock(&tcp_fastopen_ctx_lock);
 
@@ -301,7 +301,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	    tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
 	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
-	    !memcmp(foc->val, valid_foc.val, foc->len)) {
+	    !memcmp_fast(foc->val, valid_foc.val, foc->len)) {
 		/* Cookie is valid. Create a (full) child socket to accept
 		 * the data in SYN before returning a SYN-ACK to ack the
 		 * data. If we fail to create the socket, fall back and
