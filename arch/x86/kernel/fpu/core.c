@@ -129,7 +129,7 @@ EXPORT_SYMBOL(__kernel_fpu_end_bh);
 void __kernel_fpu_begin(void)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
-	if (in_serving_softirq())
+	if (likely(in_serving_softirq()))
 		return;
 #endif
 	__kernel_fpu_begin_bh();
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(__kernel_fpu_begin);
 void __kernel_fpu_end(void)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
-	if (in_serving_softirq())
+	if (likely(in_serving_softirq()))
 		return;
 #endif
 	__kernel_fpu_end_bh();
