@@ -55,6 +55,12 @@
 
 #define TLS_AAD_SPACE_SIZE		13
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+#define TLS_MAX_TAG_SZ			16
+/* Maximum size for required skb overhead: header, IV, tag. */
+#define TLS_MAX_OVERHEAD		(TLS_AAD_SPACE_SIZE + TLS_MAX_TAG_SZ)
+#endif
+
 struct tls_sw_context {
 	struct crypto_aead *aead_send;
 

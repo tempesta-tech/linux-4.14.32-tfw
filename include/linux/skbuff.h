@@ -854,6 +854,52 @@ struct sk_buff {
 #define SKB_ALLOC_RX		0x02
 #define SKB_ALLOC_NAPI		0x04
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+/**
+ * The skb mark are used only for time between @skb was inserted into TCP send
+ * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
+ * isn't scheduled yet, so we can use skb->dev for our needs to avoid extending
+ * sk_buff. We use the least significant bit to be sure that the this isn't a
+ * pointer to not to break anything. TLS message type << 1 is alwasy smaller
+ * than 0xff.
+ */
+static inline int
+tempesta_tls_skb_settype(struct sk_buff *skb, unsigned char type)
+{
+	BUG_ON(type >= 0x80);
+	if (unlikely(skb->dev)) {
+		WARN_ON_ONCE(skb->dev);
+		return -EINVAL;
+	}
+	skb->dev = (void *)((type << 1) | 1UL);
+}
+
+static inline unsigned char
+tempesta_tls_skb_type(struct sk_buff *skb)
+{
+	unsigned long d = (unsigned long)skb->dev;
+
+	if (unlikely(d ^ 1UL))
+		return 0;
+	return d >> 1;
+}
+
+static inline void
+tempesta_tls_skb_typecp(struct sk_buff *dst, struct sk_buff *src)
+{
+	dst->dev = src->dev;
+}
+
+static inline void
+tempesta_tls_skb_clear(struct sk_buff *skb)
+{
+	unsigned long d = (unsigned long)skb->dev;
+
+	WARN_ON_ONCE(d & ~0xff);
+	skb->dev = NULL;
+}
+#endif
+
 /* Returns true if the skb was allocated from PFMEMALLOC reserves */
 static inline bool skb_pfmemalloc(const struct sk_buff *skb)
 {
