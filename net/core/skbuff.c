@@ -319,7 +319,7 @@ assign_tail_chunks:
 #undef PREEMPT_CTX_DISABLE
 #undef PREEMPT_CTX_ENABLE
 }
-EXPORT_SYMBOL(pg_skg_alloc);
+EXPORT_SYMBOL(pg_skb_alloc);
 #endif
 
 static void

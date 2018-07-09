@@ -232,7 +232,7 @@
 	SKB_WITH_OVERHEAD((PAGE_SIZE << (ORDER)) - (X))
 #define SKB_MAX_HEAD(X)		(SKB_MAX_ORDER((X), 0))
 #define SKB_MAX_ALLOC		(SKB_MAX_ORDER(0, 2))
-#ifndef CONFIG_SECURITY_TEMPESTA
+#ifdef CONFIG_SECURITY_TEMPESTA
 #define SKB_MAX_HEADER	(PAGE_SIZE - MAX_TCP_HEADER			\
 			 - SKB_DATA_ALIGN(sizeof(struct sk_buff))	\
 			 - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) \
@@ -878,6 +878,7 @@ tempesta_tls_skb_settype(struct sk_buff *skb, unsigned char type)
 		return -EINVAL;
 	}
 	skb->dev = (void *)((type << 1) | 1UL);
+	return 0;
 }
 
 static inline unsigned char

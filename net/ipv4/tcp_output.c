@@ -2329,14 +2329,14 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		limit = mss_now;
 #ifdef CONFIG_SECURITY_TEMPESTA
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
-			if (unlikely(limit <= TLS_MAX_MSG_OVERHEAD)) {
+			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
 				net_warn_ratelimited("%s: too small MSS %u"
 						     " for TLS\n",
 						     __func__, mss_now);
 				break;
 			}
 			if (limit < TLS_MAX_PAYLOAD_SIZE)
-				limit -= TLS_MAX_MSG_OVERHEAD;
+				limit -= TLS_MAX_OVERHEAD;
 			else
 				limit = TLS_MAX_PAYLOAD_SIZE;
 		}
