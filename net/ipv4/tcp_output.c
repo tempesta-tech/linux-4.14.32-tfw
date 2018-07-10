@@ -2327,6 +2327,12 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		}
 
 		limit = mss_now;
+		if (tso_segs > 1 && !tcp_urg_mode(tp))
+			limit = tcp_mss_split_point(sk, skb, mss_now,
+						    min_t(unsigned int,
+							  cwnd_quota,
+							  max_segs),
+						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
 			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
@@ -2341,13 +2347,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				limit = TLS_MAX_PAYLOAD_SIZE;
 		}
 #endif
-		if (tso_segs > 1 && !tcp_urg_mode(tp))
-			limit = tcp_mss_split_point(sk, skb, mss_now,
-						    min_t(unsigned int,
-							  cwnd_quota,
-							  max_segs),
-						    nonagle);
-
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
@@ -2370,9 +2369,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 * get 16KB (maximum size of TLS message).
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb))
-			if (unlikely(sk->sk_write_xmit(sk, skb)))
+			if (unlikely(sk->sk_write_xmit(sk, skb, limit)))
 				break;
 #endif
+		pr_err("AK_DBG %s: skb=%pK len=%u\n", __func__, skb, skb->len);
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
 

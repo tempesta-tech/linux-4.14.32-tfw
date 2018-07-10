@@ -473,7 +473,8 @@ struct sock {
 	void			(*sk_write_space)(struct sock *sk);
 #ifdef CONFIG_SECURITY_TEMPESTA
 	int			(*sk_write_xmit)(struct sock *sk,
-						 struct sk_buff *skb);
+						 struct sk_buff *skb,
+						 unsigned int limit);
 #endif
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
