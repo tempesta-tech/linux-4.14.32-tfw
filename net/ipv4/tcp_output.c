@@ -2372,7 +2372,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			if (unlikely(sk->sk_write_xmit(sk, skb, limit)))
 				break;
 #endif
-		pr_err("AK_DBG %s: skb=%pK len=%u\n", __func__, skb, skb->len);
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
 
