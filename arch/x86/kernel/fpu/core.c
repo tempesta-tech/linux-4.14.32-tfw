@@ -86,6 +86,10 @@ static bool interrupted_user_mode(void)
  */
 bool irq_fpu_usable(void)
 {
+#ifdef CONFIG_SECURITY_TEMPESTA
+	if (likely(in_serving_softirq()))
+		return true;
+#endif
 	return !in_interrupt() ||
 		interrupted_user_mode() ||
 		interrupted_kernel_fpu_idle();
