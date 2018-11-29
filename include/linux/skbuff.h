@@ -862,23 +862,20 @@ struct sk_buff {
 
 #ifdef CONFIG_SECURITY_TEMPESTA
 /**
- * The skb mark are used only for time between @skb was inserted into TCP send
+ * The skb type is used only for time between @skb was inserted into TCP send
  * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
  * isn't scheduled yet, so we can use skb->dev for our needs to avoid extending
- * sk_buff. We use the least significant bit to be sure that the this isn't a
+ * sk_buff. We use the least significant bit to be sure that this isn't a
  * pointer to not to break anything. TLS message type << 1 is alwasy smaller
  * than 0xff.
  */
-static inline int
+static inline void
 tempesta_tls_skb_settype(struct sk_buff *skb, unsigned char type)
 {
 	BUG_ON(type >= 0x80);
-	if (unlikely(skb->dev)) {
-		WARN_ON_ONCE(skb->dev);
-		return -EINVAL;
-	}
+	WARN_ON_ONCE(skb->dev);
+
 	skb->dev = (void *)((type << 1) | 1UL);
-	return 0;
 }
 
 static inline unsigned char
@@ -886,8 +883,8 @@ tempesta_tls_skb_type(struct sk_buff *skb)
 {
 	unsigned long d = (unsigned long)skb->dev;
 
-	if (unlikely(d ^ 1UL))
-		return 0;
+	if (!(d & 1UL))
+		return 0; /* a pointer in skb->dev */
 	return d >> 1;
 }
 

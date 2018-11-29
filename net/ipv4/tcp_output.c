@@ -2369,8 +2369,17 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 * get 16KB (maximum size of TLS message).
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb))
-			if (unlikely(sk->sk_write_xmit(sk, skb, limit)))
+			if (unlikely(sk->sk_write_xmit(sk, skb, limit))) {
+				net_warn_ratelimited(
+					"Tempesta: cannot encrypt data,"
+					" so reset a TLS connection.\n");
+				/*
+				 * FIXME #984 WARNING: at net/core/stream.c:205
+				 * sk_stream_kill_queues+0x106/0x120
+				 */
+				tcp_reset(sk);
 				break;
+			}
 #endif
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
