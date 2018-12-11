@@ -451,7 +451,11 @@ void *crypto_create_tfm(struct crypto_alg *alg,
 	tfmsize = frontend->tfmsize;
 	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	mem = kzalloc(total, GFP_ATOMIC);
+#else
 	mem = kzalloc(total, GFP_KERNEL);
+#endif
 	if (mem == NULL)
 		goto out_err;
 
