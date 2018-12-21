@@ -2341,10 +2341,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						     __func__, mss_now);
 				break;
 			}
-			if (limit < TLS_MAX_PAYLOAD_SIZE)
-				limit -= TLS_MAX_OVERHEAD;
-			else
+			if (limit > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
 				limit = TLS_MAX_PAYLOAD_SIZE;
+			else
+				limit -= TLS_MAX_OVERHEAD;
 		}
 #endif
 		if (skb->len > limit &&

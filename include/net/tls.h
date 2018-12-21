@@ -58,7 +58,8 @@
 #ifdef CONFIG_SECURITY_TEMPESTA
 #define TLS_MAX_TAG_SZ			16
 /* Maximum size for required skb overhead: header, IV, tag. */
-#define TLS_MAX_OVERHEAD		(TLS_AAD_SPACE_SIZE + TLS_MAX_TAG_SZ)
+#define TLS_MAX_OVERHEAD		(TLS_HEADER_SIZE + TLS_AAD_SPACE_SIZE \
+					 + TLS_MAX_TAG_SZ)
 #endif
 
 struct tls_sw_context {
