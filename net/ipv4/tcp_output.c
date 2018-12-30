@@ -2358,14 +2358,14 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 #ifdef CONFIG_SECURITY_TEMPESTA
 		/*
 		 * This isn't the only place where tcp_transmit_skb() is called,
-		 * but this is the only place were we are from Tempesta FW
+		 * but this is the only place where we are from Tempesta FW
 		 * ss_do_send(), so call the hook here. At this point, with
 		 * @limit adjusted above, we have exact understanding how much
 		 * data we can and should send to the peer, so we call
 		 * encryption here and get the best TLS record size.
 		 *
 		 * TODO Sometimes HTTP servers send headers and response body in
-		 * different TCP segments, so coalese skbs for transmission to
+		 * different TCP segments, so coalesce skbs for transmission to
 		 * get 16KB (maximum size of TLS message).
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {

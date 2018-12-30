@@ -866,7 +866,7 @@ struct sk_buff {
  * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
  * isn't scheduled yet, so we can use skb->dev for our needs to avoid extending
  * sk_buff. We use the least significant bit to be sure that this isn't a
- * pointer to not to break anything. TLS message type << 1 is alwasy smaller
+ * pointer to not to break anything. TLS message type << 1 is always smaller
  * than 0xff.
  */
 static inline void
