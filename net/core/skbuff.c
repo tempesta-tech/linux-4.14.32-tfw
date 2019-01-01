@@ -219,8 +219,8 @@ __pg_pool_shrink(TfwSkbMemPool *pool)
 	return true;
 }
 
-static void *
-__pg_skb_alloc(unsigned int size, gfp_t gfp_mask, int node)
+void *
+pg_skb_alloc(unsigned int size, gfp_t gfp_mask, int node)
 {
 	/*
 	 * Don't disable softirq if hardirqs are already disabled to avoid
@@ -319,6 +319,7 @@ assign_tail_chunks:
 #undef PREEMPT_CTX_DISABLE
 #undef PREEMPT_CTX_ENABLE
 }
+EXPORT_SYMBOL(pg_skb_alloc);
 #endif
 
 static void
@@ -455,7 +456,7 @@ __alloc_skb(unsigned int size, gfp_t gfp_mask, int flags, int node)
 	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
 		gfp_mask |= __GFP_MEMALLOC;
 
-	if (!(skb = __pg_skb_alloc(n, gfp_mask, node)))
+	if (!(skb = pg_skb_alloc(n, gfp_mask, node)))
 		return NULL;
 
 	data = (u8 *)skb + skb_sz;
@@ -1706,7 +1707,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	if (skb_pfmemalloc(skb))
 		gfp_mask |= __GFP_MEMALLOC;
 #ifdef CONFIG_SECURITY_TEMPESTA
-	data = __pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
+	data = pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
 	if (!data)
 		goto nodata;
 	size = SKB_WITH_OVERHEAD(PG_ALLOC_SZ(size));
@@ -5493,7 +5494,7 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 		gfp_mask |= __GFP_MEMALLOC;
 #ifdef CONFIG_SECURITY_TEMPESTA
 	size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	data = __pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
+	data = pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
 	if (!data)
 		return -ENOMEM;
 	size = SKB_WITH_OVERHEAD(PG_ALLOC_SZ(size));
@@ -5632,7 +5633,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 		gfp_mask |= __GFP_MEMALLOC;
 #ifdef CONFIG_SECURITY_TEMPESTA
 	size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	data = __pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
+	data = pg_skb_alloc(size, gfp_mask, NUMA_NO_NODE);
 	if (!data)
 		return -ENOMEM;
 	size = SKB_WITH_OVERHEAD(PG_ALLOC_SZ(size));

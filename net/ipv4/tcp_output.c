@@ -37,6 +37,9 @@
 #define pr_fmt(fmt) "TCP: " fmt
 
 #include <net/tcp.h>
+#ifdef CONFIG_SECURITY_TEMPESTA
+#include <net/tls.h>
+#endif
 
 #include <linux/compiler.h>
 #include <linux/gfp.h>
@@ -2330,7 +2333,20 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  cwnd_quota,
 							  max_segs),
 						    nonagle);
-
+#ifdef CONFIG_SECURITY_TEMPESTA
+		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
+			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
+				net_warn_ratelimited("%s: too small MSS %u"
+						     " for TLS\n",
+						     __func__, mss_now);
+				break;
+			}
+			if (limit > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
+				limit = TLS_MAX_PAYLOAD_SIZE;
+			else
+				limit -= TLS_MAX_OVERHEAD;
+		}
+#endif
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
@@ -2339,7 +2355,34 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			clear_bit(TCP_TSQ_DEFERRED, &sk->sk_tsq_flags);
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
-
+#ifdef CONFIG_SECURITY_TEMPESTA
+		/*
+		 * This isn't the only place where tcp_transmit_skb() is called,
+		 * but this is the only place where we are from Tempesta FW
+		 * ss_do_send(), so call the hook here. At this point, with
+		 * @limit adjusted above, we have exact understanding how much
+		 * data we can and should send to the peer, so we call
+		 * encryption here and get the best TLS record size.
+		 *
+		 * TODO Sometimes HTTP servers send headers and response body in
+		 * different TCP segments, so coalesce skbs for transmission to
+		 * get 16KB (maximum size of TLS message).
+		 */
+		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
+			result = sk->sk_write_xmit(sk, skb, limit);
+			if (unlikely(result)) {
+				net_warn_ratelimited(
+					"Tempesta: cannot encrypt data (%d),"
+					" reset a TLS connection.\n", result);
+				/*
+				 * FIXME #984 WARNING: at net/core/stream.c:205
+				 * sk_stream_kill_queues+0x106/0x120
+				 */
+				tcp_reset(sk);
+				break;
+			}
+		}
+#endif
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
 
