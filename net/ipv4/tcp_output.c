@@ -2374,10 +2374,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				net_warn_ratelimited(
 					"Tempesta: cannot encrypt data (%d),"
 					" reset a TLS connection.\n", result);
-				/*
-				 * FIXME #984 WARNING: at net/core/stream.c:205
-				 * sk_stream_kill_queues+0x106/0x120
-				 */
 				tcp_reset(sk);
 				break;
 			}
