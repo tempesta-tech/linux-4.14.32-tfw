@@ -2403,9 +2403,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				tcp_reset(sk);
 				break;
 			}
-			/* We must not break TSO. */
-			WARN_ON_ONCE(tcp_skb_pcount(skb)
-				     != DIV_ROUND_UP(skb->len, mss_now));
+			/* Fix up TSO segments after TLS overhead. */
+			tcp_set_skb_tso_segs(skb, mss_now);
 		}
 #endif
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
