@@ -1246,6 +1246,32 @@ static void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2)
 	TCP_SKB_CB(skb)->eor = 0;
 }
 
+/**
+ * Tempesta uses page fragments for all skb allocations, so if an skb was
+ * allocated in standard Linux way, then pskb_expand_head( , 0, 0, ) may
+ * return larger skb and we have to adjust skb->truesize and memory accounting
+ * for TCP write queue.
+ */
+static int
+tcp_skb_unclone(struct sock *sk, struct sk_buff *skb, gfp_t pri)
+{
+	int r, delta_truesize = skb->truesize;
+
+	if ((r = skb_unclone(skb, pri)))
+		return r;
+
+	delta_truesize -= skb->truesize;
+	sk->sk_wmem_queued -= delta_truesize;
+	if (delta_truesize > 0) {
+		sk_mem_uncharge(sk, delta_truesize);
+		sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
+	} else {
+		sk_mem_charge(sk, -delta_truesize);
+	}
+
+	return 0;
+}
+
 /* Function to create two new TCP segments.  Shrinks the given segment
  * to the specified size and appends a new segment with the rest of the
  * packet to the list.  This won't be called frequently, I hope.
@@ -1267,7 +1293,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 	if (nsize < 0)
 		nsize = 0;
 
-	if (skb_unclone(skb, gfp))
+	if (tcp_skb_unclone(sk, skb, gfp))
 		return -ENOMEM;
 
 	/* Get a new skb... force flag on. */
@@ -1385,7 +1411,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 {
 	u32 delta_truesize;
 
-	if (skb_unclone(skb, GFP_ATOMIC))
+	if (tcp_skb_unclone(sk, skb, GFP_ATOMIC))
 		return -ENOMEM;
 
 	delta_truesize = __pskb_trim_head(skb, len);
@@ -2377,6 +2403,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				tcp_reset(sk);
 				break;
 			}
+			/* Fix up TSO segments after TLS overhead. */
+			tcp_set_skb_tso_segs(skb, mss_now);
 		}
 #endif
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
@@ -2882,19 +2910,9 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		if (tcp_fragment(sk, skb, len, cur_mss, GFP_ATOMIC))
 			return -ENOMEM; /* We'll try again later. */
 	} else {
-		int delta_truesize = skb->truesize;
-
-		if (skb_unclone(skb, GFP_ATOMIC))
+		if (tcp_skb_unclone(sk, skb, GFP_ATOMIC))
 			return -ENOMEM;
 
-		delta_truesize -= skb->truesize;
-		sk->sk_wmem_queued -= delta_truesize;
-		if (delta_truesize > 0) {
-			sk_mem_uncharge(sk, delta_truesize);
-			sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
-		} else {
-			sk_mem_charge(sk, -delta_truesize);
-		}
 		diff = tcp_skb_pcount(skb);
 		tcp_set_skb_tso_segs(skb, cur_mss);
 		diff -= tcp_skb_pcount(skb);
