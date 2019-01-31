@@ -1217,12 +1217,29 @@ struct cryptd_skcipher *cryptd_alloc_skcipher(const char *alg_name,
 	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
 	struct cryptd_skcipher_ctx *ctx;
 	struct crypto_skcipher *tfm;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	static struct crypto_alg *alg = NULL;
 
+	if (unlikely(!alg)) {
+		WARN_ON_ONCE(in_serving_softirq());
+		if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME, "cryptd(%s)",
+			     alg_name)
+		    >= CRYPTO_MAX_ALG_NAME)
+		{
+			return ERR_PTR(-EINVAL);
+		}
+		alg = crypto_find_skcipher(cryptd_alg_name, type, mask);
+		if (IS_ERR(alg))
+			return (struct cryptd_skcipher *)alg;
+	}
+	tfm = crypto_alloc_skcipher_atomic(alg);
+#else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
 		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
 		return ERR_PTR(-EINVAL);
 
 	tfm = crypto_alloc_skcipher(cryptd_alg_name, type, mask);
+#endif
 	if (IS_ERR(tfm))
 		return ERR_CAST(tfm);
 
@@ -1269,11 +1286,28 @@ struct cryptd_ahash *cryptd_alloc_ahash(const char *alg_name,
 	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
 	struct cryptd_hash_ctx *ctx;
 	struct crypto_ahash *tfm;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	static struct crypto_alg *alg = NULL;
 
+	if (unlikely(!alg)) {
+		WARN_ON_ONCE(in_serving_softirq());
+		if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME, "cryptd(%s)",
+			     alg_name)
+		    >= CRYPTO_MAX_ALG_NAME)
+		{
+			return ERR_PTR(-EINVAL);
+		}
+		alg = crypto_find_ahash(cryptd_alg_name, type, mask);
+		if (IS_ERR(alg))
+			return (struct cryptd_ahash *)alg;
+	}
+	tfm = crypto_alloc_ahash_atomic(alg);
+#else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
 		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
 		return ERR_PTR(-EINVAL);
 	tfm = crypto_alloc_ahash(cryptd_alg_name, type, mask);
+#endif
 	if (IS_ERR(tfm))
 		return ERR_CAST(tfm);
 	if (tfm->base.__crt_alg->cra_module != THIS_MODULE) {
@@ -1326,11 +1360,28 @@ struct cryptd_aead *cryptd_alloc_aead(const char *alg_name,
 	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
 	struct cryptd_aead_ctx *ctx;
 	struct crypto_aead *tfm;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	static struct crypto_alg *alg = NULL;
 
+	if (unlikely(!alg)) {
+		WARN_ON_ONCE(in_serving_softirq());
+		if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME, "cryptd(%s)",
+			     alg_name)
+		    >= CRYPTO_MAX_ALG_NAME)
+		{
+			return ERR_PTR(-EINVAL);
+		}
+		alg = crypto_find_aead(cryptd_alg_name, type, mask);
+		if (IS_ERR(alg))
+			return (struct cryptd_aead *)alg;
+	}
+	tfm = crypto_alloc_aead_atomic(alg);
+#else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
 		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
 		return ERR_PTR(-EINVAL);
 	tfm = crypto_alloc_aead(cryptd_alg_name, type, mask);
+#endif
 	if (IS_ERR(tfm))
 		return ERR_CAST(tfm);
 	if (tfm->base.__crt_alg->cra_module != THIS_MODULE) {
