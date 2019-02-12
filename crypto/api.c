@@ -491,6 +491,9 @@ struct crypto_alg *crypto_find_alg(const char *alg_name,
 	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask) =
 		crypto_alg_mod_lookup;
 
+	/* The function is slow and preemptable to be called in softirq. */
+	WARN_ON_ONCE(in_serving_softirq());
+
 	if (frontend) {
 		type &= frontend->maskclear;
 		mask &= frontend->maskclear;

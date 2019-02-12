@@ -454,6 +454,22 @@ struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_shash);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+struct crypto_alg *
+crypto_find_shash(const char *alg_name, u32 type, u32 mask)
+{
+	return crypto_find_alg(alg_name, &crypto_shash_type, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_find_shash);
+
+struct crypto_shash *
+crypto_alloc_shash_atomic(struct crypto_alg *alg)
+{
+	return crypto_create_tfm(alg, &crypto_shash_type);
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_shash_atomic);
+#endif
+
 static int shash_prepare_alg(struct shash_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;

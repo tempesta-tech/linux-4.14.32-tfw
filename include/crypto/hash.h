@@ -245,6 +245,11 @@ static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
 struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
 					u32 mask);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+struct crypto_alg *crypto_find_ahash(const char *alg_name, u32 type, u32 mask);
+struct crypto_ahash *crypto_alloc_ahash_atomic(struct crypto_alg *alg);
+#endif
+
 static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
 {
 	return &tfm->base;
@@ -680,6 +685,11 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
  */
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 					u32 mask);
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+struct crypto_alg *crypto_find_shash(const char *alg_name, u32 type, u32 mask);
+struct crypto_shash *crypto_alloc_shash_atomic(struct crypto_alg *alg);
+#endif
 
 static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
 {

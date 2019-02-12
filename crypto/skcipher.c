@@ -928,6 +928,22 @@ struct crypto_skcipher *crypto_alloc_skcipher(const char *alg_name,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_skcipher);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+struct crypto_alg *
+crypto_find_skcipher(const char *alg_name, u32 type, u32 mask)
+{
+	return crypto_find_alg(alg_name, &crypto_skcipher_type2, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_find_skcipher);
+
+struct crypto_skcipher *
+crypto_alloc_skcipher_atomic(struct crypto_alg *alg)
+{
+	return crypto_create_tfm(alg, &crypto_skcipher_type2);
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_skcipher_atomic);
+#endif
+
 int crypto_has_skcipher2(const char *alg_name, u32 type, u32 mask)
 {
 	return crypto_type_has_alg(alg_name, &crypto_skcipher_type2,
