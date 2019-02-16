@@ -32,6 +32,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#include "internal.h"
+
 #define CRYPTD_MAX_CPU_QLEN 1000
 
 struct cryptd_cpu_queue {
@@ -1232,6 +1234,8 @@ struct cryptd_skcipher *cryptd_alloc_skcipher(const char *alg_name,
 		if (IS_ERR(alg))
 			return (struct cryptd_skcipher *)alg;
 	}
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	tfm = crypto_alloc_skcipher_atomic(alg);
 #else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
@@ -1301,6 +1305,8 @@ struct cryptd_ahash *cryptd_alloc_ahash(const char *alg_name,
 		if (IS_ERR(alg))
 			return (struct cryptd_ahash *)alg;
 	}
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	tfm = crypto_alloc_ahash_atomic(alg);
 #else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
@@ -1375,6 +1381,8 @@ struct cryptd_aead *cryptd_alloc_aead(const char *alg_name,
 		if (IS_ERR(alg))
 			return (struct cryptd_aead *)alg;
 	}
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	tfm = crypto_alloc_aead_atomic(alg);
 #else
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
