@@ -465,6 +465,8 @@ EXPORT_SYMBOL_GPL(crypto_find_shash);
 struct crypto_shash *
 crypto_alloc_shash_atomic(struct crypto_alg *alg)
 {
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	return crypto_create_tfm(alg, &crypto_shash_type);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_shash_atomic);

@@ -571,6 +571,8 @@ EXPORT_SYMBOL_GPL(crypto_find_ahash);
 struct crypto_ahash *
 crypto_alloc_ahash_atomic(struct crypto_alg *alg)
 {
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	return crypto_create_tfm(alg, &crypto_ahash_type);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ahash_atomic);

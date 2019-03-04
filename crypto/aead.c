@@ -354,6 +354,8 @@ EXPORT_SYMBOL_GPL(crypto_find_aead);
 struct crypto_aead *
 crypto_alloc_aead_atomic(struct crypto_alg *alg)
 {
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	return crypto_create_tfm(alg, &crypto_aead_type);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_aead_atomic);
