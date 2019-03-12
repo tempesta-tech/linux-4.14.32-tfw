@@ -939,6 +939,8 @@ EXPORT_SYMBOL_GPL(crypto_find_skcipher);
 struct crypto_skcipher *
 crypto_alloc_skcipher_atomic(struct crypto_alg *alg)
 {
+	alg = crypto_mod_get(alg);
+	BUG_ON(!alg);
 	return crypto_create_tfm(alg, &crypto_skcipher_type2);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_skcipher_atomic);
