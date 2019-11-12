@@ -156,6 +156,14 @@ static inline bool dev_xmit_complete(int rc)
  * to allocate 16 more bytes (5 - TLS header, 8 - IV, 3 - alignment).
  */
 #define TLS_MAX_HDR		16
+/*
+ * For fast transformation of HTTP/1.1 responses into HTTP/2 format, Tempesta
+ * uses zero-copy in-place rewriting of the response data, right in original
+ * skb. HTTP/2 data is almost always smaller of its source HTTP/1.1 data, but
+ * for the sake of robustness we use 32-byte initial offset in front of skb
+ * data. Thus, in order to guarantee the stack headers to fit, we should
+ * increase the total space for them.
+ */
 #define HTTP2_MAX_OFFSET	32
 #else
 #define TLS_MAX_HDR		0
