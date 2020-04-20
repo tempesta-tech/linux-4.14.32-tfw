@@ -437,6 +437,25 @@ nodata:
 	goto out;
 }
 #else
+
+/*
+ * Skb can be allocated and freed on different CPUs,
+ * so the counter can be negative.
+ */
+static DEFINE_PER_CPU(long, __skb_cnt) ____cacheline_aligned = 0;
+
+long
+__get_skb_count(void)
+{
+	int cpu;
+	long count = 0;
+
+	for_each_online_cpu(cpu)
+		count += *per_cpu_ptr(&__skb_cnt, cpu);
+
+	return count;
+}
+EXPORT_SYMBOL(__get_skb_count);
 /**
  * Tempesta: allocate skb on the same page with data to improve space locality
  * and make head data fragmentation easier.
@@ -468,6 +487,8 @@ __alloc_skb(unsigned int size, gfp_t gfp_mask, int flags, int node)
 	__alloc_skb_init(skb, data, size, flags, page_is_pfmemalloc(pg));
 	skb->head_frag = 1;
 	skb->skb_page = 1;
+
+	++*this_cpu_ptr(&__skb_cnt);
 
 	return skb;
 }
@@ -801,9 +822,10 @@ static void kfree_skbmem(struct sk_buff *skb)
 	switch (skb->fclone) {
 	case SKB_FCLONE_UNAVAILABLE:
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (skb->skb_page)
+		if (skb->skb_page) {
 			put_page(virt_to_page(skb));
-		else
+			--*this_cpu_ptr(&__skb_cnt);
+		} else
 #endif
 			kmem_cache_free(skbuff_head_cache, skb);
 		return;
@@ -829,6 +851,7 @@ fastpath:
 #ifdef CONFIG_SECURITY_TEMPESTA
 	BUG_ON(!skb->skb_page);
 	put_page(virt_to_page(skb));
+	--*this_cpu_ptr(&__skb_cnt);
 #else
 	kmem_cache_free(skbuff_fclone_cache, fclones);
 #endif
@@ -1529,6 +1552,8 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 		n->fclone = SKB_FCLONE_UNAVAILABLE;
 #ifdef CONFIG_SECURITY_TEMPESTA
 		n->skb_page = 0;
+
+		++*this_cpu_ptr(&__skb_cnt);
 #endif
 	}
 
