@@ -541,6 +541,10 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	++*this_cpu_ptr(&__skb_cnt);
+#endif
+
 	return skb;
 }
 
@@ -822,10 +826,10 @@ static void kfree_skbmem(struct sk_buff *skb)
 	switch (skb->fclone) {
 	case SKB_FCLONE_UNAVAILABLE:
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (skb->skb_page) {
+		--*this_cpu_ptr(&__skb_cnt);
+		if (skb->skb_page)
 			put_page(virt_to_page(skb));
-			--*this_cpu_ptr(&__skb_cnt);
-		} else
+		else
 #endif
 			kmem_cache_free(skbuff_head_cache, skb);
 		return;
@@ -978,6 +982,9 @@ void __kfree_skb_flush(void)
 	if (nc->skb_count) {
 		kmem_cache_free_bulk(skbuff_head_cache, nc->skb_count,
 				     nc->skb_cache);
+#ifdef CONFIG_SECURITY_TEMPESTA
+		*this_cpu_ptr(&__skb_cnt) -= nc->skb_count;
+#endif
 		nc->skb_count = 0;
 	}
 }
@@ -996,6 +1003,7 @@ static inline void _kfree_skb_defer(struct sk_buff *skb)
 #ifdef CONFIG_SECURITY_TEMPESTA
 	if (skb->skb_page) {
 		put_page(virt_to_page(skb));
+		--*this_cpu_ptr(&__skb_cnt);
 		return;
 	}
 #endif
@@ -1013,6 +1021,9 @@ static inline void _kfree_skb_defer(struct sk_buff *skb)
 		kmem_cache_free_bulk(skbuff_head_cache, NAPI_SKB_CACHE_SIZE,
 				     nc->skb_cache);
 		nc->skb_count = 0;
+#ifdef CONFIG_SECURITY_TEMPESTA
+		*this_cpu_ptr(&__skb_cnt) -= NAPI_SKB_CACHE_SIZE;
+#endif
 	}
 }
 void __kfree_skb_defer(struct sk_buff *skb)
@@ -1552,7 +1563,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 		n->fclone = SKB_FCLONE_UNAVAILABLE;
 #ifdef CONFIG_SECURITY_TEMPESTA
 		n->skb_page = 0;
-
 		++*this_cpu_ptr(&__skb_cnt);
 #endif
 	}
