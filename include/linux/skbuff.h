@@ -861,6 +861,8 @@ struct sk_buff {
 #define SKB_ALLOC_NAPI		0x04
 
 #ifdef CONFIG_SECURITY_TEMPESTA
+long __get_skb_count(void);
+
 /**
  * The skb type is used only for time between @skb was inserted into TCP send
  * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
