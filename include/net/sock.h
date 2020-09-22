@@ -73,6 +73,8 @@
 #include <linux/net_tstamp.h>
 #include <net/smc.h>
 
+#include <asm/kdebug.h>
+
 /*
  * This structure really needs to be cleaned up.
  * Most of it is for TCP, and not used by any of
@@ -615,18 +617,14 @@ static inline bool __sk_del_node_init(struct sock *sk)
    modifications.
  */
 
-static __always_inline void sock_hold(struct sock *sk)
-{
-	refcount_inc(&sk->sk_refcnt);
-}
+void sock_hold(struct sock *sk);
 
 /* Ungrab socket in the context, which assumes that socket refcnt
    cannot hit zero, f.e. it is true in context of any socketcall.
  */
-static __always_inline void __sock_put(struct sock *sk)
-{
-	refcount_dec(&sk->sk_refcnt);
-}
+void __sock_put(struct sock *sk);
+
+char *sock_trace_get_trace(const struct sock *sk);
 
 static inline bool sk_del_node_init(struct sock *sk)
 {
@@ -1644,11 +1642,8 @@ void sock_init_data(struct socket *sock, struct sock *sk);
  */
 
 /* Ungrab socket and destroy it, if it was the last reference. */
-static inline void sock_put(struct sock *sk)
-{
-	if (refcount_dec_and_test(&sk->sk_refcnt))
-		sk_free(sk);
-}
+void sock_put(struct sock *sk);
+
 /* Generic version of sock_put(), dealing with all sockets
  * (TCP_TIMEWAIT, TCP_NEW_SYN_RECV, ESTABLISHED...)
  */

@@ -28,6 +28,7 @@ extern void show_stack_regs(struct pt_regs *regs);
 extern void __show_regs(struct pt_regs *regs, int all);
 extern void show_iret_regs(struct pt_regs *regs);
 extern unsigned long oops_begin(void);
+extern char *str_stack_trace(const char *title, char *buf, char *last);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 
 #endif /* _ASM_X86_KDEBUG_H */

@@ -145,6 +145,138 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
+static DEFINE_SPINLOCK(g_sock_trace_lock);
+static DEFINE_HASHTABLE(g_sock_trace_hash, 12);
+
+#define TRACE_TMP_BUF_SZ (64 * 1024)
+#define TRACE_BUF_SZ (128 * 1024)
+
+struct sock_trace_entry {
+	struct hlist_node node;
+	char *ptr;
+	struct sock *sk;
+	char trace_buf[TRACE_BUF_SZ];
+};
+
+static struct sock_trace_entry *__sock_trace_find_entry(const struct sock *sk)
+{
+	struct sock_trace_entry *it;
+	hash_for_each_possible(g_sock_trace_hash, it, node, (unsigned long)sk) {
+		if (it->sk == sk)
+			return it;
+	}
+
+	return NULL;
+}
+
+char *sock_trace_get_trace(const struct sock *sk)
+{
+	unsigned long flags;
+	struct sock_trace_entry *te;
+	char *res = NULL;
+
+	spin_lock_irqsave(&g_sock_trace_lock, flags);
+	hash_for_each_possible(g_sock_trace_hash, te, node, (unsigned long)sk) {
+		if (te->sk != sk)
+			continue;
+
+		res = kmalloc(TRACE_BUF_SZ, GFP_ATOMIC | __GFP_ZERO);
+		memcpy(res, te->trace_buf, TRACE_BUF_SZ);
+		BUG_ON(strlen(res) != te->ptr - te->trace_buf);
+		goto done;
+	}
+
+done:
+	spin_unlock_irqrestore(&g_sock_trace_lock, flags);
+	return res;
+}
+EXPORT_SYMBOL(sock_trace_get_trace);
+
+static char *new_str_stack_trace(const char *title, size_t *sz)
+{
+	char *str = kmalloc(TRACE_TMP_BUF_SZ, GFP_ATOMIC | __GFP_ZERO);
+	BUG_ON(str == NULL);
+	*sz = str_stack_trace(title, str, str + TRACE_TMP_BUF_SZ) - str;
+	return str;
+}
+
+static struct sock_trace_entry *__sock_trace_alloc_entry(struct sock *sk)
+{
+	struct sock_trace_entry *te;
+
+	te = kmalloc(sizeof(struct sock_trace_entry), GFP_ATOMIC | __GFP_ZERO);
+	BUG_ON(te == NULL);
+	te->sk = sk;
+	te->ptr = te->trace_buf;
+	hash_add(g_sock_trace_hash, &te->node, (unsigned long)sk);
+	return te;
+}
+
+static void __sock_trace_remove_entry(struct sock_trace_entry *te)
+{
+	hash_del(&te->node);
+	kfree(te);
+}
+
+static __always_inline void __sock_trace_append_str(
+	struct sock *sk, char *str, size_t len)
+{
+	struct sock_trace_entry *te = __sock_trace_find_entry(sk);
+	if (!te)
+		te = __sock_trace_alloc_entry(sk);
+
+	if (te->ptr + len + 1 < te->trace_buf + TRACE_BUF_SZ) {
+		memcpy(te->ptr, str, len);
+		te->ptr += len;
+		te->ptr[0] = 0;
+	} else if (te->ptr + 64 < te->trace_buf + TRACE_BUF_SZ) {
+		const char *s = "Trace buffer overflow.\n";
+		BUG_ON(strlen(s) + 1 >= 64);
+		memcpy(te->ptr, s, strlen(s) + 1);
+		te->ptr += strlen(s);
+	}
+}
+
+static __always_inline void sock_trace(struct sock *sk, const char *title)
+{
+	char *backtrace_str;
+	size_t backtrace_str_sz;
+	unsigned long flags;
+
+	if (!in_interrupt())
+		return;
+
+	backtrace_str = new_str_stack_trace(title, &backtrace_str_sz);
+
+	spin_lock_irqsave(&g_sock_trace_lock, flags);
+	__sock_trace_append_str(sk, backtrace_str, backtrace_str_sz);
+	spin_unlock_irqrestore(&g_sock_trace_lock, flags);
+
+	kfree(backtrace_str);
+}
+
+void sock_put(struct sock *sk)
+{
+	sock_trace(sk, "sock_put");
+	if (refcount_dec_and_test(&sk->sk_refcnt))
+		sk_free(sk);
+}
+EXPORT_SYMBOL(sock_put);
+
+void __sock_put(struct sock *sk)
+{
+	sock_trace(sk, "__sock_put");
+	refcount_dec(&sk->sk_refcnt);
+}
+EXPORT_SYMBOL(__sock_put);
+
+void sock_hold(struct sock *sk)
+{
+	sock_trace(sk, "sock_hold");
+	refcount_inc(&sk->sk_refcnt);
+}
+EXPORT_SYMBOL(sock_hold);
+
 /**
  * sk_ns_capable - General socket capability test
  * @sk: Socket to use a capability on or through
@@ -1438,6 +1570,12 @@ static inline void sock_lock_init(struct sock *sk)
  */
 static void sock_copy(struct sock *nsk, const struct sock *osk)
 {
+	struct sock_trace_entry *te, *te_old;
+	unsigned long flags;
+	char *backtrace_str;
+	size_t backtrace_str_sz;
+	size_t len;
+
 #ifdef CONFIG_SECURITY_NETWORK
 	void *sptr = nsk->sk_security;
 #endif
@@ -1450,6 +1588,28 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 	nsk->sk_security = sptr;
 	security_sk_clone(osk, nsk);
 #endif
+
+	if (!in_interrupt())
+		return;
+
+	backtrace_str = new_str_stack_trace("sock_copy", &backtrace_str_sz);
+
+	spin_lock_irqsave(&g_sock_trace_lock, flags);
+	te_old = __sock_trace_find_entry(osk);
+	te = __sock_trace_find_entry(nsk);
+	BUG_ON(te_old == NULL || te != NULL);
+
+	te = __sock_trace_alloc_entry(nsk);
+	te->ptr += sprintf(te->ptr, "sock_copy, from %p to %p\n", osk, nsk);
+	len = min_t(size_t, te->trace_buf + TRACE_BUF_SZ - te->ptr,
+	            te_old->ptr - te_old->trace_buf);
+	memcpy(te->ptr, te_old->trace_buf, len);
+	te->ptr += len;
+
+	__sock_trace_append_str(nsk, backtrace_str, backtrace_str_sz);
+
+	spin_unlock_irqrestore(&g_sock_trace_lock, flags);
+	kfree(backtrace_str);
 }
 
 static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
@@ -1493,6 +1653,8 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 {
 	struct kmem_cache *slab;
 	struct module *owner;
+	struct sock_trace_entry *te;
+	unsigned long flags;
 
 	owner = prot->owner;
 	slab = prot->slab;
@@ -1500,6 +1662,13 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	cgroup_sk_free(&sk->sk_cgrp_data);
 	mem_cgroup_sk_free(sk);
 	security_sk_free(sk);
+
+	spin_lock_irqsave(&g_sock_trace_lock, flags);
+	te = __sock_trace_find_entry(sk);
+	if (te)
+		__sock_trace_remove_entry(te);
+	spin_unlock_irqrestore(&g_sock_trace_lock, flags);
+
 	if (slab != NULL)
 		kmem_cache_free(slab, sk);
 	else
