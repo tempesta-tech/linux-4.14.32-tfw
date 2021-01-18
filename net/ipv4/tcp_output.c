@@ -2396,12 +2396,36 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
 			result = sk->sk_write_xmit(sk, skb, limit);
-			if (unlikely(result)) {
+			if (result == -EPIPE)
+				/* Just a closed socket - do nothing. */
+				return false;
+			if (result) {
+				/*
+				 * We can not send unencrypted data and can not
+				 * close and free the socket from here:
+				 * 1. our caller may reference the socket;
+				 * 2. and also we can not normally close the
+				 *    socket with FIN since we just drop the
+				 *    TCP payload (sender didn't finish
+				 *    transmission).
+				 * Move the socket to dead state and just drop
+				 * all the pending unencrypted data - hopefully
+				 * the someone closes it at some point, see
+				 * tcp_reset(). This should never happen.
+				 *
+				 * TODO send RST.
+				 */
 				net_warn_ratelimited(
-					"Tempesta: cannot encrypt data (%d),"
-					" reset a TLS connection.\n", result);
-				tcp_reset(sk);
-				break;
+					"Tempesta TLS: cannot encrypt data (%d),"
+					" try to close the TCP connection.\n",
+					result);
+				tcp_write_queue_purge(sk);
+				tcp_clear_xmit_timers(sk);
+				sk->sk_err = ECONNRESET;
+				tcp_set_state(sk, TCP_CLOSE);
+				sk->sk_shutdown = SHUTDOWN_MASK;
+				sock_set_flag(sk, SOCK_DEAD);
+				return false;
 			}
 			/* Fix up TSO segments after TLS overhead. */
 			tcp_set_skb_tso_segs(skb, mss_now);
