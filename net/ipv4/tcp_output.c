@@ -2396,9 +2396,11 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
 			result = sk->sk_write_xmit(sk, skb, limit);
-			if (result == -EPIPE)
+			if (result == -EPIPE) {
 				/* Just a closed socket - do nothing. */
+				WARN_ON_ONCE(!sock_flag(sk, SOCK_DEAD));
 				return false;
+			}
 			if (result) {
 				/*
 				 * We can not send unencrypted data and can not
